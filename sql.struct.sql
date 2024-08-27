@@ -4,7 +4,7 @@
 --
 -- Host: localhost
 -- Generation Time: 2019-01-11 19:17:30
--- 服务器版本： 5.5.61-0ubuntu0.14.04.1
+-- 鏈嶅姟鍣ㄧ増鏈細 5.5.61-0ubuntu0.14.04.1
 -- PHP Version: 5.5.37-1+deprecated+dontuse+deb.sury.org~trusty+1
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
@@ -17,7 +17,7 @@ SET time_zone = "+00:00";
 -- --------------------------------------------------------
 
 --
--- 表的结构 `items`
+-- 琛ㄧ殑缁撴瀯 `items`
 --
 
 DROP TABLE IF EXISTS `items`;
@@ -40,7 +40,7 @@ CREATE TABLE IF NOT EXISTS `items` (
 -- --------------------------------------------------------
 
 --
--- 表的结构 `projects`
+-- 琛ㄧ殑缁撴瀯 `projects`
 --
 
 DROP TABLE IF EXISTS `projects`;
@@ -53,7 +53,7 @@ CREATE TABLE IF NOT EXISTS `projects` (
 -- --------------------------------------------------------
 
 --
--- 表的结构 `types`
+-- 琛ㄧ殑缁撴瀯 `types`
 --
 
 DROP TABLE IF EXISTS `types`;
@@ -66,7 +66,7 @@ CREATE TABLE IF NOT EXISTS `types` (
 -- --------------------------------------------------------
 
 --
--- 表的结构 `users`
+-- 琛ㄧ殑缁撴瀯 `users`
 --
 
 DROP TABLE IF EXISTS `users`;
@@ -132,4 +132,4 @@ ALTER TABLE `users`
   MODIFY `uid` mediumint(6) unsigned NOT NULL AUTO_INCREMENT;
 	
 INSERT INTO `projects` (`pid`, `pname`, `members`) VALUES
-(0, '公共模块', '');
+(0, '鍏叡妯″潡', '');

@@ -1,24 +1,24 @@
-BUGÌá³öÕßÍ³¼Æ
+BUGæå‡ºè€…ç»Ÿè®¡
 SELECT u.fullname, count(1) AS sum FROM `items` AS i LEFT JOIN users AS u ON i.creator=u.uid WHERE i.status!=5 group by `creator`
 
-·ÖÄ£¿éBUG·Ö²¼
+åˆ†æ¨¡å—BUGåˆ†å¸ƒ
 SELECT t.name, count(1) AS sum FROM `items` AS i LEFT JOIN types AS t ON i.type=t.tid WHERE i.status<5 group by `type`
 
-·ÖÄ£¿éÒÑ½â¾öBUG·Ö²¼
+åˆ†æ¨¡å—å·²è§£å†³BUGåˆ†å¸ƒ
 SELECT t.name, count(1) AS sum FROM `items` AS i LEFT JOIN types AS t ON i.type=t.tid WHERE i.status in (0,4) group by `type`
 
-¡¾ÖÜ±¨Ïà¹Ø¡¿http://tool.chinaz.com/Tools/unixtime.aspx
-ĞÂÔöbug¼ÆÊı
+ã€å‘¨æŠ¥ç›¸å…³ã€‘http://tool.chinaz.com/Tools/unixtime.aspx
+æ–°å¢bugè®¡æ•°
 SELECT count(1) AS sum FROM `items`  WHERE status!=5 and timestamp > 1548316800
 
-ĞÂÔöBUGÄ£¿é·Ö²¼
+æ–°å¢BUGæ¨¡å—åˆ†å¸ƒ
 SELECT t.name, count(1) AS sum FROM `items` AS i LEFT JOIN types AS t ON i.type=t.tid WHERE i.status<5 AND i.TIMESTAMP >1548316800 group by `type`
 
-ĞÂÔöBUG½â¾öÇé¿ö·Ö²¼
+æ–°å¢BUGè§£å†³æƒ…å†µåˆ†å¸ƒ
 SELECT u.fullname, i.status, count(1) AS sum FROM `items` AS i LEFT JOIN users AS u ON i.lastchanger=u.uid WHERE i.TIMESTAMP >1548316800  group by i.`assignto`, i.`status`
 
-±¾ÖÜBUG½â¾öÇé¿öÄ£¿é·Ö²¼
+æœ¬å‘¨BUGè§£å†³æƒ…å†µæ¨¡å—åˆ†å¸ƒ
 SELECT t.name, count(1) AS sum FROM `items` AS i LEFT JOIN types AS t ON i.type=t.tid WHERE i.`status` in (0,4) and i.fix_time >1548316800 group by `type`
 
-±¾ÖÜBUG½â¾öÇé¿öÈËÔ±·Ö²¼
+æœ¬å‘¨BUGè§£å†³æƒ…å†µäººå‘˜åˆ†å¸ƒ
 SELECT u.fullname, count(1) AS sum FROM `items` AS i LEFT JOIN users AS u ON i.assignto=u.uid WHERE i.`status` in (0,4) AND i.fix_time >1548316800  group by i.`assignto`
