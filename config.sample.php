@@ -3,5 +3,5 @@ $dbhost = "localhost";
 $dbuser = "root";
 $dbpw = "123456";
 $dbcharset = "utf8mb4";
-define('ANTI_FISH_STR', 'wefoi#0sfJ@*:fweofwiefx');
+define('ANTI_FISH_STR', '===YOUSHOULDCHANGETHISWORDS===');
 ?>
