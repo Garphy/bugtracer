@@ -1,6 +1,6 @@
 <?php
-function _L( $k ){
-	$LANG = array(
+function _L($k) {
+	$LANG = [
 		'closed' => '已关闭',
 		'new' => '新增',
 		'key' => '重要',
@@ -10,8 +10,8 @@ function _L( $k ){
 		'todo' => '待办',
 		'idea' => '备忘'
 	//'' =>'',
-	);
+	];
 
-	return isset($LANG[$k]) ? $LANG[$k] : $k;
+	return $LANG[$k] ?? $k;
 }
 ?>

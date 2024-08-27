@@ -1,5 +1,5 @@
 <?php
-/* bugTracer v1.0	by Garphy
+/* bugTracer v1.0    by Garphy
 
 todo:
 合并子类及bug
@@ -7,152 +7,179 @@ todo:
 */
 
 define('SELFNAME', 'ADMIN');
-include 'common.inc.php';
+require 'common.inc.php';
 if($_G['role'] != 'admin' ) exit;
-$action = isset($_GET['action']) ? $_GET['action'] : 'projectList';
+$action = $_GET['action'] ?? 'projectList';
 
 $msg = '';
 //============新建项目
-if( $action=='newProject' ){
-	$pid = $projectName = '';	
-	$types = $members = array();
-	$coders = getMembers('coder');
+if($action == 'newProject'){
+    $pid = $projectName = '';    
+    $types = $members = [];
+    $coders = getMembers('coder');
 //============修改项目
-}else if( $action=='editProject' ){
-	if( !isset($_GET['pid']) ) showErr('invalid pid!');
-	$pid = intval($_GET['pid']);
-	$projectName = $_G['projects'][$pid];
-	$sql = "SELECT * FROM `projects` WHERE pid={$pid}";
-	$result = mysql_query($sql);
-	$row = mysql_fetch_array($result);
-	if( !mysql_num_rows($result) ) showErr('project not found!');
-	$members = !empty($row['members']) ? unserialize($row['members']) : array();
-	$typesId = array_keys( getProjectlist($pid) );
-	$sql = "SELECT type, count(1) as num FROM `items` WHERE type in (".implode(',', $typesId).") GROUP BY type";
-	$result = mysql_query($sql);
-	if( @mysql_num_rows($result) ){
-		while($row = mysql_fetch_array($result)){
-			$typesNum[$row['type']] = $row['num'];
-		}
-	}
-	$types = getProjectlist($pid);
-	$coders = getMembers('coder');
+} elseif($action == 'editProject'){
+    if(!isset($_GET['pid'])) showErr('invalid pid!');
+    $pid = intval($_GET['pid']);
+    $projectName = $_G['projects'][$pid];
+    $sql = "SELECT * FROM `projects` WHERE pid = ?";
+    $stmt = mysqli_prepare($GLOBALS['conn'], $sql);
+    mysqli_stmt_bind_param($stmt, "i", $pid);
+    mysqli_stmt_execute($stmt);
+    $result = mysqli_stmt_get_result($stmt);
+    $row = mysqli_fetch_assoc($result);
+    if(!mysqli_num_rows($result)) showErr('project not found!');
+    $members = !empty($row['members']) ? unserialize($row['members']) : [];
+    $typesId = array_keys(getProjectlist($pid));
+    $sql = "SELECT type, COUNT(1) as num FROM `items` WHERE type IN (" . implode(',', array_fill(0, count($typesId), '?')) . ") GROUP BY type";
+    $stmt = mysqli_prepare($GLOBALS['conn'], $sql);
+    mysqli_stmt_bind_param($stmt, str_repeat('i', count($typesId)), ...$typesId);
+    mysqli_stmt_execute($stmt);
+    $result = mysqli_stmt_get_result($stmt);
+    $typesNum = [];
+    while($row = mysqli_fetch_assoc($result)){
+        $typesNum[$row['type']] = $row['num'];
+    }
+    $types = getProjectlist($pid);
+    $coders = getMembers('coder');
 //============保存项目：新建/修改
-}else if( $action=='saveProject' ){
-	$pid = intval($_POST['pid']);
-	if( !isset($_G['projects'][$pid]) ) showErr('project not found');
-	$projectName = strFilter($_POST['projectName']);
-	if( in_array( '', $_POST['members'] ) ){
-		$memberStr = '';
-	}else{
-		array_walk( $_POST['members'], 'intvalArr');
-		$memberStr = serialize($_POST['members']);
-	}
-	if( $pid >= 0 && $_POST['action']=='editProject' ){
-		mysql_query("UPDATE `projects` SET pname='{$projectName}', members='{$memberStr}' WHERE pid={$pid}");
-	}else if( $_POST['action']=='newProject' ){
-		if( empty($projectName) ) showErr('不能建立空项目');
-		$sql = "INSERT INTO `projects` ( `pname`, `members` ) VALUES ( '{$projectName}', '{$memberStr}' )";
-		if( !mysql_query($sql) ) showErr('新建项目失败！');
-		$pid = mysql_insert_id();
-	}else{
-		exit;
-	}
-	$typesExisted = array_keys( getProjectlist($pid) );
-	foreach( $_POST['tid'] as $tid => $typeName ){
-		$tid = intval($tid);
-		$typeName = strFilter($typeName);
-		if( empty($typeName) ) continue;
-		if( in_array( $tid, $typesExisted ) ){
-			$sql = ($typeName=='TO_BE_REMOVED') ? "DELETE FROM `types` WHERE tid={$tid}" : "UPDATE `types` SET name='{$typeName}' WHERE tid={$tid}";
-		}else{//new
-			$sql = "INSERT INTO `types` ( `pid`, `name` ) VALUES ( {$pid}, '{$typeName}' )";
-		}
-		mysql_query($sql);
-	}
-	$msg = 'Project saved.';
-	$action = 'projectList';
+} elseif($action == 'saveProject'){
+    $pid = intval($_POST['pid']);
+    if(!isset($_G['projects'][$pid])) showErr('project not found');
+    $projectName = strFilter($_POST['projectName']);
+    $memberStr = in_array('', $_POST['members']) ? '' : serialize(array_map('intval', $_POST['members']));
+    if($pid >= 0 && $_POST['action'] == 'editProject'){
+        $sql = "UPDATE `projects` SET pname = ?, members = ? WHERE pid = ?";
+        $stmt = mysqli_prepare($GLOBALS['conn'], $sql);
+        mysqli_stmt_bind_param($stmt, "ssi", $projectName, $memberStr, $pid);
+        mysqli_stmt_execute($stmt);
+    } elseif($_POST['action'] == 'newProject'){
+        if(empty($projectName)) showErr('不能建立空项目');
+        $sql = "INSERT INTO `projects` (`pname`, `members`) VALUES (?, ?)";
+        $stmt = mysqli_prepare($GLOBALS['conn'], $sql);
+        mysqli_stmt_bind_param($stmt, "ss", $projectName, $memberStr);
+        if(!mysqli_stmt_execute($stmt)) showErr('新建项目失败！');
+        $pid = mysqli_insert_id($GLOBALS['conn']);
+    } else {
+        exit;
+    }
+    $typesExisted = array_keys(getProjectlist($pid));
+    foreach($_POST['tid'] as $tid => $typeName){
+        $tid = intval($tid);
+        $typeName = strFilter($typeName);
+        if(empty($typeName)) continue;
+        if(in_array($tid, $typesExisted)){
+            $sql = ($typeName == 'TO_BE_REMOVED') ? "DELETE FROM `types` WHERE tid = ?" : "UPDATE `types` SET name = ? WHERE tid = ?";
+            $stmt = mysqli_prepare($GLOBALS['conn'], $sql);
+            if($typeName == 'TO_BE_REMOVED'){
+                mysqli_stmt_bind_param($stmt, "i", $tid);
+            } else {
+                mysqli_stmt_bind_param($stmt, "si", $typeName, $tid);
+            }
+        } else {
+            $sql = "INSERT INTO `types` (`pid`, `name`) VALUES (?, ?)";
+            $stmt = mysqli_prepare($GLOBALS['conn'], $sql);
+            mysqli_stmt_bind_param($stmt, "is", $pid, $typeName);
+        }
+        mysqli_stmt_execute($stmt);
+    }
+    $msg = 'Project saved.';
+    $action = 'projectList';
 //============人员列表
-}else if( $action=='memberList' ){
-	$members = getMembers();
+} elseif($action == 'memberList'){
+    $members = getMembers();
 //============修改人员信息
-}else if( $action=='editMember' ){
-	$uid = intval($_GET['uid']);
-	$members = getMembers( $uid, 'uid' );
-	$member = $members[$uid];
+} elseif($action == 'editMember'){
+    $uid = intval($_GET['uid']);
+    $members = getMembers($uid, 'uid');
+    $member = $members[$uid];
 //============新增人员
-}else if( $action=='newMember' ){
-	$uid = 0;
-	$member = array( 'username' => '', 'fullname' => '', 'role' => '' );
+} elseif($action == 'newMember'){
+    $uid = 0;
+    $member = ['username' => '', 'fullname' => '', 'role' => ''];
 //============保存人员：新增/修改
-}else if( $action=='saveMember' ){
-	$uid = intval($_POST['uid']);
-	if( !$uid && $action=='editMember' ) showErr('无效UID');
-	$username = strFilter($_POST['username']);
-	$fullname = strFilter($_POST['fullname']);
-	$role = @strFilter($_POST['role']);
-	if( !in_array($role, $_G['roles'] ) ) showErr('不给权限别人怎么玩啊！');
-	$pw = strFilter($_POST['password']);
-	if( empty($username) ) showErr('用户名没填怎么行啊！');
-	if( !preg_match( '/^[_\-A-Za-z0-9]+$/', $username ) ) showErr('用户名请用英文字母！');
-	if( empty($fullname) ) $fullname = $username;
-	if( $_POST['action']=='editMember' ){
-		$sql = "UPDATE `users` SET username='{$username}', fullname='{$fullname}', role='{$role}'";
-		if( !empty($pw) ) $sql .= ", password='". md5($pw) ."'";
-		$sql .= " WHERE uid={$uid}";
-	}else if( $_POST['action']=='newMember' ){
-		if( empty($pw) ) $pw = '123456';
-		$pw = md5($pw);
-		$sql = "INSERT INTO `users` ( `role` , `fullname` , `username` , `password` ) VALUES ( '{$role}', '{$fullname}', '{$username}', '{$pw}' )";
-	}
-	$msg = mysql_query($sql) ? 'Member saved.' : 'err.';
-	$action = 'memberList';
-	$members = getMembers();
+} elseif($action == 'saveMember'){
+    $uid = intval($_POST['uid']);
+    if(!$uid && $action == 'editMember') showErr('无效UID');
+    $username = strFilter($_POST['username']);
+    $fullname = strFilter($_POST['fullname']);
+    $role = strFilter($_POST['role'] ?? '');
+    if(!in_array($role, $_G['roles'])) showErr('不给权限别人怎么玩啊！');
+    $pw = strFilter($_POST['password']);
+    if(empty($username)) showErr('用户名没填怎么行啊！');
+    if(!preg_match('/^[_\-A-Za-z0-9]+$/', $username)) showErr('用户名请用英文字母！');
+    if(empty($fullname)) $fullname = $username;
+    if($_POST['action'] == 'editMember'){
+        $sql = "UPDATE `users` SET username = ?, fullname = ?, role = ?";
+        $params = [$username, $fullname, $role];
+        $types = "sss";
+        if(!empty($pw)){
+            $sql .= ", password = ?";
+            $params[] = password_hash($pw, PASSWORD_DEFAULT);
+            $types .= "s";
+        }
+        $sql .= " WHERE uid = ?";
+        $params[] = $uid;
+        $types .= "i";
+    } elseif($_POST['action'] == 'newMember'){
+        if(empty($pw)) $pw = '123456';
+        $pw = password_hash($pw, PASSWORD_DEFAULT);
+        $sql = "INSERT INTO `users` (`role`, `fullname`, `username`, `password`) VALUES (?, ?, ?, ?)";
+        $params = [$role, $fullname, $username, $pw];
+        $types = "ssss";
+    }
+    $stmt = mysqli_prepare($GLOBALS['conn'], $sql);
+    mysqli_stmt_bind_param($stmt, $types, ...$params);
+    $msg = mysqli_stmt_execute($stmt) ? 'Member saved.' : 'err.';
+    $action = 'memberList';
+    $members = getMembers();
 //============项目列表
-}else{
-	$projects = $_G['projects'];
+} else {
+    $projects = $_G['projects'];
 }
 //cur tab
-$curtab = (stripos( $action, 'member') !== false) ? 'member' : 'prj';
+$curtab = (stripos($action, 'member') !== false) ? 'member' : 'prj';
 
 function strFilter($str){
-	return trim($str);
+    return trim($str);
 }
 
-function intvalArr( &$v, $k ){
-	$v = intval($v);
+function getMembers($by = '', $filter = 'role'){
+    $coders = [];
+    $sql = "SELECT uid, username, fullname, role FROM `users`";
+    if(!empty($by)) $sql .= " WHERE `{$filter}` = ?";
+    $sql .= " ORDER BY role, fullname";
+    $stmt = mysqli_prepare($GLOBALS['conn'], $sql);
+    if(!empty($by)) mysqli_stmt_bind_param($stmt, "s", $by);
+    mysqli_stmt_execute($stmt);
+    $result = mysqli_stmt_get_result($stmt);
+    if(!mysqli_num_rows($result)) return $coders;
+    while($row = mysqli_fetch_assoc($result)){
+        $member = array_filter($row, function($k) {
+            return !is_numeric($k);
+        }, ARRAY_FILTER_USE_KEY);
+        $coders[$row['uid']] = $member;
+    }
+    return $coders;
 }
-function getMembers( $by = '', $filter = 'role' ){
-	$coders = array();
-	$sql = "SELECT uid, username, fullname, role FROM `users`";
-	if( !empty($by) ) $sql .= " WHERE `{$filter}` = '{$by}'";
-	$sql .= " ORDER BY role, fullname";
-	$result = mysql_query($sql);
-	if(!mysql_num_rows($result)) return $coders;
-	while($row = mysql_fetch_array($result)){
-		$member = array();
-		foreach( $row as $k => $v ){
-			if( !preg_match( '/^\d+$/', $k ) ) $member[$k] = $v ;
-		}
-		$coders[$row['uid']] = $member;
-	}
-	return $coders;
-}
-	
+    
 function getProjectlist($pid){
-	$list = array();
-	$sql = "SELECT * FROM `types` WHERE pid='{$pid}' ORDER BY pid ASC";
-	$result = mysql_query($sql);
-	if(!mysql_num_rows($result)) return $list;
-	while($row = mysql_fetch_array($result)){
-		$list[$row['tid']] = $row['name'];
-	}
-	return $list;
+    $list = [];
+    $sql = "SELECT * FROM `types` WHERE pid = ? ORDER BY pid ASC";
+    $stmt = mysqli_prepare($GLOBALS['conn'], $sql);
+    mysqli_stmt_bind_param($stmt, "i", $pid);
+    mysqli_stmt_execute($stmt);
+    $result = mysqli_stmt_get_result($stmt);
+    if(!mysqli_num_rows($result)) return $list;
+    while($row = mysqli_fetch_assoc($result)){
+        $list[$row['tid']] = $row['name'];
+    }
+    return $list;
 }
 
-function showErr( $msg ){
-	echo $msg;
-	exit;
+function showErr($msg){
+    echo $msg;
+    exit;
 }
 
 ?>
@@ -167,21 +194,21 @@ function showErr( $msg ){
 </head>
 <body>
 <div class="top">
-	<h1><a href="admin.php">BugTracer 管理后台</a> <a href="./">[返回前台]</a></h1>
+    <h1><a href="admin.php">BugTracer 管理后台</a> <a href="./">[返回前台]</a></h1>
 </div>
 <div class="main" id="admin">
 <div class="menu clearfix">
-	<ul id="types">
-    	<li id="prj" class="first-child"><a href="?">项目管理</a></li>
+    <ul id="types">
+        <li id="prj" class="first-child"><a href="?">项目管理</a></li>
         <li id="member"><a href="?action=memberList">人员管理</a></li>
-    	<!--<li class="add"><a href="javascript:void(0)" title="快捷键：Ctrl+`">提交新bug</a></li>-->
+        <!--<li class="add"><a href="javascript:void(0)" title="快捷键：Ctrl+`">提交新bug</a></li>-->
     </ul>
     <script type="text/javascript"> $('#<?php echo $curtab?>').addClass('on'); </script>
 </div>
 <div class="content2">
     <div class="cms clearfix">
         <div id="msg"><?php echo $msg; ?></div>
-        <?php include './tpl/admin.tpl.htm';?>
+        <?php require './tpl/admin.tpl.htm';?>
     </div>
 </div>
 
@@ -189,7 +216,7 @@ function showErr( $msg ){
 Tips：前端人员全称前统一加个*，以示区别；
 </div>
 
-<?php include './tpl/foot.tpl.htm';	?>
+<?php require './tpl/foot.tpl.htm';    ?>
 
 </div>
 </body>
