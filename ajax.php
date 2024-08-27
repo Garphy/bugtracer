@@ -52,7 +52,7 @@ if($action == 'new'){
     $assignto = intval($_POST['assignto']);
     $content = filter(rawurldecode($_POST['content']));
     $files = filter($_POST['files']);
-    $ver = empty($_POST['ver']) ? 'NULL' : "'" . filter($_POST['ver']) . "'";
+    $ver = empty($_POST['ver']) ? '' : "'" . filter($_POST['ver']) . "'";
     if(!($type > 0 && $content != '')) err();
     $sql = "UPDATE `items` SET 
         `type` = ?, 
