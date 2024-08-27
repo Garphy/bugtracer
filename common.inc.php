@@ -34,7 +34,7 @@ mysqli_select_db($conn, "bug") or die("目标库不存在");
 require 'login.inc.php';
 require 'lang.inc.php';
 
-$_G['pid'] = $_GET['pid'] ?? 0;
+$_G['pid'] = (int)($_GET['pid'] ?? 0);
 $thisPid = $_G['pid'];
 $_G['prjName'] = '';
 $_G['cur_ver'] = $_G['vers'][$thisPid] ?? '';

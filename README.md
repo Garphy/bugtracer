@@ -13,6 +13,7 @@ extension=mbstring
 sudo systemctl restart nginx
 ```
 创建附件目录：uploads 并赋予写入权限
+创建日志目录：log 并赋予写入权限
 
 ## 特性
 - 功能兼容IE6，界面上BS IE6
