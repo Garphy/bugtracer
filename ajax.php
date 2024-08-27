@@ -11,7 +11,7 @@ if($action == 'new'){
     $type = intval($_POST['type']);
     $content = filter(urldecode($_POST['content']));
     $files = filter($_POST['files']);
-    $ver = empty($_POST['ver']) ? 'NULL' : "'" . filter($_POST['ver']) . "'";
+    $ver = empty($_POST['ver']) ? '' : "'" . filter($_POST['ver']) . "'";
     $assignto = $_POST['assignto'];
     if(!($type > 0 && $content != '')) err();
     $sql = "INSERT INTO `items` (`type`, `ver`, `content`, `creator`, `assignto`, `timestamp`, `changetime`, `files`)

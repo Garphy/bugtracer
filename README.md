@@ -9,9 +9,10 @@ sudo apt-get install php-mbstring
 
 php.ini设置
 extension=mbstring
-post_max_size = 25M
-upload_max_filesize = 20M
+post_max_size = 10M
+upload_max_filesize = 10M
 
+sudo systemctl restart php8.1-fpm
 sudo systemctl restart nginx
 ```
 创建附件目录：uploads 并赋予写入权限
