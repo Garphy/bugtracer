@@ -1,0 +1,86 @@
+<!-- members --> 
+<?php if( $action=='memberList' ){ ?>
+<p><a class="edit" href="?action=newMember&uid=">新增人员&gt;&gt;</a></p>
+<dl class="memberList">
+	<?php
+    $role = '';
+    foreach( $members as $uid => $member ){
+    	if( $role!=$member['role'] ) echo '<dt>'.$member['role'].'</dt>';
+        $role = $member['role'];
+        echo '<dd><em>'.$member['uid'].'.</em> '.$member['fullname'].' <a class="edit" href="?action=editMember&uid='.$member['uid'].'">[修改]</a></dd>';
+    }?>
+</dl>
+<span class="blank"></span>
+<!-- edit member -->
+<?php }else if( $action=='editMember' || $action=='newMember' ){ ?>
+<p class="path"><a class="edit" href="?action=memberList">&lt;&lt;返回</a></p>
+<form action="admin.php?action=saveMember&uid=<?php echo $uid?>" method="post">
+    <p><label>姓名： <input type="text" name="fullname" value="<?php echo $member['fullname']?>" /></label></p>
+    <p>
+			<label>帐号： <input type="text" name="username" value="<?php echo $member['username']?>" /></label> 
+			<em>*英文ONLY</em>
+		</p>
+    <p>权限： 
+    	<?php foreach( $_G['roles'] as $role){
+        	$checked = ($role==$member['role']) ? ' checked="checked"':'';
+        	echo '<label><input type="radio" name="role" value="'.$role.'"'.$checked.' /> '.$role.'  </label> ';
+        }?>
+    </p>
+    <p><label>密码： <input type="password" name="password" value="" /></label> <em>*初始密码 123456</em></p>
+    <input type="hidden" name="uid" value="<?php echo $uid?>" />
+    <input type="hidden" name="action" value="<?php echo $action?>" />
+    <p class="indent"><button class="btn" type="submit">提交</button></p>
+</form>
+<!-- edit project -->
+<?php }else if( $action=='editProject' || $action=='newProject' ){ ?>
+<p class="path"><a class="edit" href="?action=projectList">&lt;&lt;返回</a></p>
+<form action="admin.php?action=saveProject&pid=<?php echo $pid?>" method="post">
+    <p>
+    	<label>项目名称：<input type="text" name="projectName" value="<?php echo $projectName?>" /></label> 
+        <?php if( $action=='editProject' ){ ?>
+        	<a href="./?pid=<?php echo $pid?>&type=all" target="_blank">查看项目</a>
+        <?php } ?>
+    </p>
+    <p>子分类：</p>
+    <ul id="typelist">
+        <?php
+        if( count($types) ){
+            foreach( $types as $tid => $typeName ){
+                $bugNum = isset($typesNum[$tid]) ? $typesNum[$tid]:0;
+                echo '<li><input type="text" tid="'.$tid.'" name="tid['.$tid.']" value="'.$typeName.'" /> <em>('.$bugNum.')</em> <a class="del" href="javascript:void(0)">X</a></li>';
+            }
+        }else{
+        	echo '<script type="text/javascript">addsub();</script>';
+        }?>
+    </ul>
+    <p class="indent"><a class="edit" href="javascript:addsub()">[增加子分类]</a></p>
+    <p>指派技术：<em>（可多选）</em></p>
+    <select name="members[]" multiple="multiple">
+        <option value="" <?php if(!count($members)) echo 'selected="selected"'?>>全部</option>
+    	<?php foreach( $coders as $uid => $member ){
+        	$selected = in_array($uid, $members) ? ' selected="selected"':'';
+			echo '<option value="'.$uid.'" '.$selected.'>'.$member['fullname'].'</option>';
+        }?>
+    </select>
+    <input type="hidden" name="pid" value="<?php echo $pid?>" />
+    <input type="hidden" name="action" value="<?php echo $action?>" />
+    <p class="indent"><button class="btn" type="submit">提交</button></p>
+</form>
+<!-- default: projectList -->
+<?php }else if( $action=='projectList' ){ ?>
+<dl>
+	<dt><a class="edit" href="?action=newProject">新建项目&gt;&gt;</a></dt>
+</dl>
+<?php foreach( $projects as $pid => $prjName ){ ?>
+<dl class="project">
+	<dt><?php echo $pid?>. <a href="./?pid=<?php echo $pid?>&type=all" target="_blank"><?php echo $prjName?></a> <a class="edit" href="?action=editProject&pid=<?php echo $pid?>">[修改]</a></dt>
+	<?php foreach( getProjectlist($pid) as $tid => $typeName ){
+    	echo '<dd><a href="./?pid='.$pid.'&type='.$tid.'" target="_blank">'.$typeName.'</a></dd>';
+    }?>
+</dl>
+<?php } ?>
+<span class="blank"></span>
+<!-- err -->
+<?php }else{ ?>
+	无效操作！
+<?php }?>
