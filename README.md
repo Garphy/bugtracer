@@ -7,8 +7,10 @@ php启用必要扩展
 ```
 sudo apt-get install php-mbstring
 
-php.ini启用扩展
+php.ini设置
 extension=mbstring
+post_max_size = 25M
+upload_max_filesize = 20M
 
 sudo systemctl restart nginx
 ```
