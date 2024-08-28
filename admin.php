@@ -115,7 +115,7 @@ if($action == 'newProject'){
         $types = "sss";
         if(!empty($pw)){
             $sql .= ", password = ?";
-            $params[] = password_hash($pw, PASSWORD_DEFAULT);
+            $params[] = md5($pw);  // 使用 MD5 加密
             $types .= "s";
         }
         $sql .= " WHERE uid = ?";
@@ -123,14 +123,21 @@ if($action == 'newProject'){
         $types .= "i";
     } elseif($_POST['action'] == 'newMember'){
         if(empty($pw)) $pw = '123456';
-        $pw = password_hash($pw, PASSWORD_DEFAULT);
+        $pw = md5($pw);  // 使用 MD5 加密
         $sql = "INSERT INTO `users` (`role`, `fullname`, `username`, `password`) VALUES (?, ?, ?, ?)";
         $params = [$role, $fullname, $username, $pw];
         $types = "ssss";
     }
     $stmt = mysqli_prepare($GLOBALS['conn'], $sql);
+    if (!$stmt) {
+        die("准备语句失败: " . mysqli_error($GLOBALS['conn']));
+    }
     mysqli_stmt_bind_param($stmt, $types, ...$params);
-    $msg = mysqli_stmt_execute($stmt) ? 'Member saved.' : 'err.';
+    if (!mysqli_stmt_execute($stmt)) {
+        $error = mysqli_stmt_error($stmt);
+        die("执行语句失败: " . $error);
+    }
+    $msg = 'Member saved.';
     $action = 'memberList';
     $members = getMembers();
 //============项目列表
