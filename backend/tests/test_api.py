@@ -24,8 +24,10 @@ async def test_full_api_flow():
         headers = {"Authorization": f"Bearer {token}"}
 
         # 3. Create a coder user
+        import time
+        coder_username = f"coder_{int(time.time()*1000)}"
         create_user_res = await ac.post("/api/auth/users", headers=headers, json={
-            "username": "coder1",
+            "username": coder_username,
             "fullname": "开发小王",
             "role": "coder",
             "password": "password123"
@@ -53,9 +55,9 @@ async def test_full_api_flow():
         assert bug_data["status"] == 1
         assert bug_data["status_code"] == "new"
 
-        # 6. Login as coder1 and test permissions
+        # 6. Login as coder and test permissions
         coder_login = await ac.post("/api/auth/login", json={
-            "username": "coder1",
+            "username": coder_username,
             "password": "password123"
         })
         coder_token = coder_login.json()["access_token"]
