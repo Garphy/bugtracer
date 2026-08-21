@@ -1,3 +1,4 @@
+import os
 import logging
 from typing import AsyncGenerator
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
@@ -48,11 +49,13 @@ async def init_db():
     from backend.app.core.security import hash_password, generate_api_key
     from sqlalchemy import select
 
+    # 1. Create all database tables
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
+    # 2. Seed initial users, default project and members
     async with AsyncSessionLocal() as session:
-        # Check if default admin exists
+        # Check / create default admin
         stmt = select(User).where(User.username == settings.INITIAL_ADMIN_USERNAME)
         result = await session.execute(stmt)
         admin = result.scalars().first()
@@ -70,12 +73,29 @@ async def init_db():
             await session.refresh(admin)
             logger.info(f"Initialized default admin user: {admin.username}")
 
-        # Check if default project exists
-        stmt = select(Project).where(Project.id == 1)
-        result = await session.execute(stmt)
-        project = result.scalars().first()
+        # Check / create default AI agent user
+        stmt_ai = select(User).where(User.username == "ai_agent")
+        result_ai = await session.execute(stmt_ai)
+        ai_user = result_ai.scalars().first()
+        if not ai_user:
+            ai_user = User(
+                username="ai_agent",
+                password_hash=hash_password("ai_agent_internal_secret"),
+                fullname="AI 助手",
+                role="coder",
+                api_key=generate_api_key("bt_ai_"),
+                is_active=True
+            )
+            session.add(ai_user)
+            await session.commit()
+            await session.refresh(ai_user)
+            logger.info("Initialized default AI agent user: ai_agent")
+
+        # Check / create default project
+        stmt_proj = select(Project).where(Project.id == 1)
+        result_proj = await session.execute(stmt_proj)
+        project = result_proj.scalars().first()
         if not project:
-            # Check any project
             stmt_any = select(Project)
             result_any = await session.execute(stmt_any)
             if not result_any.scalars().first():
@@ -95,5 +115,12 @@ async def init_db():
                     sort_order=1
                 )
                 session.add(module)
+
+                # Bind admin and AI agent as members
+                if admin:
+                    session.add(ProjectMember(project_id=project.id, user_id=admin.id, role="admin"))
+                if ai_user:
+                    session.add(ProjectMember(project_id=project.id, user_id=ai_user.id, role="coder"))
+
                 await session.commit()
-                logger.info("Initialized default project: 公共模块")
+                logger.info("Initialized default project: 公共模块 with members")

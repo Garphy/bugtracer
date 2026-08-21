@@ -1,6 +1,7 @@
 version: '3.8'
 
 services:
+  # BugTracer 主服务 (单容器全栈)
   bugtracer:
     build: .
     container_name: bugtracer-app
@@ -10,8 +11,27 @@ services:
     environment:
       - HOST=0.0.0.0
       - PORT=5002
+      # 默认使用 SQLite（持久化存储在 ./data 挂载卷中）
       - DATABASE_URL=sqlite+aiosqlite:///./data/bugtracer.db
       - SECRET_KEY=bugtracer-super-secret-key-change-in-production-2026
+      - INITIAL_ADMIN_USERNAME=admin
+      - INITIAL_ADMIN_PASSWORD=123456
     volumes:
       - ./data:/app/data
       - ./uploads:/app/uploads
+
+  # (可选) 若需使用独立 MySQL 数据库，可取消下方注释并启动：
+  # db:
+  #   image: mysql:8.0
+  #   container_name: bugtracer-mysql
+  #   restart: always
+  #   environment:
+  #     MYSQL_ROOT_PASSWORD: rootpassword
+  #     MYSQL_DATABASE: bugtracer
+  #     MYSQL_USER: bugtracer
+  #     MYSQL_PASSWORD: bugtracerpassword
+  #   ports:
+  #     - "3306:3306"
+  #   volumes:
+  #     - ./mysql_data:/var/lib/mysql
+  #   command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
