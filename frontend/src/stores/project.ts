@@ -14,7 +14,7 @@ export const useProjectStore = defineStore('project', () => {
   const currentProjectDetail = ref<ProjectDetail | null>(null)
   const currentModuleId = ref<number | null>(null) // null = all
   const mode = ref<'admin' | 'coder'>(
-    (localStorage.getItem('bt_mode') as 'admin' | 'coder') || (authStore.user?.role === 'admin' ? 'admin' : 'coder')
+    (localStorage.getItem('bt_mode') as 'admin' | 'coder') || 'admin'
   )
   const statusFilter = ref<number[]>([1, 2, 3]) // Default: new, key, part_fixed
   const searchQuery = ref<string>('')
@@ -111,7 +111,7 @@ export const useProjectStore = defineStore('project', () => {
       if (searchQuery.value.trim()) {
         params.search = searchQuery.value.trim()
       } else {
-        params.status = statusFilter.value
+        params.status = statusFilter.value.join(',')
       }
 
       const res = await client.get<BugListResponse>('/bugs', { params })

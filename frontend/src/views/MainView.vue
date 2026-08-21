@@ -101,14 +101,26 @@
             </li>
           </ul>
 
-          <button
-            class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs font-medium flex items-center gap-1 transition shadow-sm my-1"
-            title="快捷键：Ctrl + `"
-            @click="openNewBugDialog"
-          >
-            <span>+ 提交新 Bug</span>
-            <kbd class="hidden sm:inline text-[10px] bg-blue-700 px-1 rounded">^`</kbd>
-          </button>
+          <!-- Action Buttons: + Submit Bug & Copy List -->
+          <div class="flex items-center gap-1.5 my-1">
+            <button
+              class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs font-medium flex items-center gap-1 transition shadow-sm"
+              title="快捷键：Ctrl + `"
+              @click="openNewBugDialog"
+            >
+              <span>+ 提交新 Bug</span>
+              <kbd class="hidden sm:inline text-[10px] bg-blue-700 px-1 rounded">^`</kbd>
+            </button>
+
+            <button
+              class="bg-white hover:bg-gray-50 text-gray-700 hover:text-blue-600 border border-gray-300 px-2 py-1 rounded text-xs font-medium flex items-center gap-1 transition shadow-sm"
+              title="复制当前页面 Bug 列表到剪贴板"
+              @click="copyBugList"
+            >
+              <Copy class="w-3.5 h-3.5" />
+              <span>复制列表</span>
+            </button>
+          </div>
         </div>
 
         <!-- Filter Bar Component -->
@@ -132,27 +144,41 @@
               @dblclick="openEditDialog(bug.id)"
             >
               <!-- Left Column: ID, Status, Content -->
-              <div class="flex items-center gap-2 truncate flex-1 mr-3">
-                <!-- Bug ID with hover/click flagger -->
+              <div class="flex items-center gap-1.5 truncate flex-1 mr-3">
+                <!-- Bug ID with hover icon indicator (# -> ChevronDown) -->
                 <b
-                  class="font-mono font-bold text-gray-800 hover:text-blue-600 px-1 py-0.5 rounded hover:bg-blue-50 cursor-pointer whitespace-nowrap"
-                  title="点击弹出状态菜单"
+                  class="group/id font-mono font-bold text-gray-800 hover:text-blue-600 px-1 py-0.5 rounded hover:bg-blue-50 cursor-pointer whitespace-nowrap min-w-[46px] inline-flex items-center gap-0.5 text-left tabular-nums transition"
+                  title="点击弹出状态流转菜单"
                   @click.stop="handleFlaggerClick(bug, $event)"
                 >
-                  #{{ bug.id }}
+                  <span class="text-gray-400 group-hover/id:hidden">#</span>
+                  <ChevronDown class="w-3 h-3 text-blue-600 hidden group-hover/id:inline-block animate-in fade-in" />
+                  <span>{{ bug.id }}</span>
                 </b>
 
-                <!-- Status Tag with 1-click fast toggle & permission check -->
+                <!-- Status Tag with tick hover preview effect -->
                 <span
-                  :class="['status-badge', `status-${bug.status_code}`]"
+                  :class="['status-badge group/status', `status-${bug.status_code}`, 'w-[64px] text-center inline-flex items-center justify-center flex-shrink-0 relative overflow-hidden']"
                   :title="getStatusClickTitle(bug)"
                   @click.stop="handleQuickStatusToggle(bug)"
                 >
-                  [{{ bug.status_name }}]
+                  <span class="group-hover/status:hidden">[{{ bug.status_name }}]</span>
+                  <span v-if="[1, 2, 3].includes(bug.status)" class="hidden group-hover/status:inline-block text-green-700 font-bold bg-green-100/90 px-1 rounded text-[10px]">
+                    ✓ 解决
+                  </span>
+                  <span v-else-if="bug.status === 4 && (authStore.isAdmin || authStore.isTester)" class="hidden group-hover/status:inline-block text-gray-700 font-bold bg-gray-200/90 px-1 rounded text-[10px]">
+                    ✓ 关闭
+                  </span>
+                  <span v-else-if="bug.status === 0 && (authStore.isAdmin || authStore.isTester)" class="hidden group-hover/status:inline-block text-blue-700 font-bold bg-blue-100/90 px-1 rounded text-[10px]">
+                    ↺ 激活
+                  </span>
+                  <span v-else class="hidden group-hover/status:inline-block">
+                    [{{ bug.status_name }}]
+                  </span>
                 </span>
 
                 <!-- Content snippet -->
-                <span class="truncate text-gray-800">
+                <span class="truncate text-gray-800 pl-1">
                   <span v-if="projectStore.currentModuleId === null && bug.module_name" class="text-gray-500 font-medium mr-1">
                     『{{ bug.module_name }}』
                   </span>
@@ -177,8 +203,11 @@
             </li>
           </ul>
 
-          <div v-else-if="!projectStore.loading" class="py-16 text-center text-gray-400 text-xs">
-            木有发现相关 Bug！按 <kbd class="px-1.5 py-0.5 bg-gray-100 border border-gray-300 rounded font-mono text-[11px]">Ctrl + `</kbd> 提交新 Bug
+          <div v-else-if="!projectStore.loading" class="py-16 text-center text-gray-400 text-xs space-y-2">
+            <div class="text-gray-500 font-medium">当前筛选条件下未发现 Bug</div>
+            <div class="text-[11px] text-gray-400">
+              可尝试点击 <button class="text-blue-600 hover:underline font-medium" @click="projectStore.setStatusFilter([0,1,2,3,4,5,6,7])">【全选状态】</button> 或按 <kbd class="px-1.5 py-0.5 bg-gray-100 border border-gray-300 rounded font-mono text-[11px]">Ctrl + `</kbd> 提交新 Bug
+            </div>
           </div>
         </div>
 
@@ -243,7 +272,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { ChevronDown } from 'lucide-vue-next'
+import { ChevronDown, Copy } from 'lucide-vue-next'
 import { useAuthStore } from '../stores/auth'
 import { useProjectStore } from '../stores/project'
 import { BugListItem } from '../types'
@@ -384,6 +413,41 @@ async function handleQuickStatusToggle(bug: BugListItem) {
 
   // Other statuses: hint user to use Flagger menu
   showToast(`请点击 Bug ID (#${bug.id}) 弹出菜单选择目标状态`, 'info')
+}
+
+// Copy current page bugs to clipboard
+async function copyBugList() {
+  if (projectStore.bugs.length === 0) {
+    showToast('当前列表无缺陷可复制', 'warn')
+    return
+  }
+  const lines = projectStore.bugs.map(b => {
+    const mod = b.module_name && b.module_name !== '全部' ? `『${b.module_name}』` : ''
+    const ver = b.ver ? ` [${b.ver}]` : ''
+    const assignee = b.assignee_name && b.assignee_name !== '未指派' ? ` (指派: ${b.assignee_name})` : ''
+    // Strip [b] and HTML for clean text
+    const cleanContent = b.content.replace(/\[\/?b\]/gi, '').replace(/<[^>]+>/g, '').trim()
+    return `#${b.id} [${b.status_name}]${ver} ${mod}${cleanContent}${assignee}`
+  })
+  const textToCopy = lines.join('\n')
+
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(textToCopy)
+    } else {
+      const textarea = document.createElement('textarea')
+      textarea.value = textToCopy
+      textarea.style.position = 'fixed'
+      textarea.style.left = '-999999px'
+      document.body.appendChild(textarea)
+      textarea.select()
+      document.execCommand('copy')
+      document.body.removeChild(textarea)
+    }
+    showToast(`已复制当前页 ${lines.length} 条缺陷到剪贴板！`, 'info')
+  } catch (err) {
+    showToast('复制到剪贴板失败，请手动复制', 'error')
+  }
 }
 
 function handleBugSaved(bugId: number) {

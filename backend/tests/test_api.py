@@ -110,3 +110,24 @@ async def test_full_api_flow():
         search_res = await ac.get(f"/api/bugs?project_id={project_id}&search={bug_id}", headers=headers)
         assert search_res.status_code == 200
         assert len(search_res.json()["items"]) == 1
+
+        # 12. Test status filtering
+        # Status 0 (closed) should return the bug
+        filter_closed = await ac.get(f"/api/bugs?project_id={project_id}&status=0", headers=headers)
+        assert filter_closed.status_code == 200
+        assert any(b["id"] == bug_id for b in filter_closed.json()["items"])
+
+        # Status 1 (new) should not return the bug (it was closed)
+        filter_new = await ac.get(f"/api/bugs?project_id={project_id}&status=1", headers=headers)
+        assert filter_new.status_code == 200
+        assert not any(b["id"] == bug_id for b in filter_new.json()["items"])
+
+        # Status empty should return 0 bugs
+        filter_empty = await ac.get(f"/api/bugs?project_id={project_id}&status=", headers=headers)
+        assert filter_empty.status_code == 200
+        assert filter_empty.json()["total"] == 0
+
+        # Status multi (0, 1, 2) should return the bug
+        filter_multi = await ac.get(f"/api/bugs?project_id={project_id}&status=0,1,2", headers=headers)
+        assert filter_multi.status_code == 200
+        assert any(b["id"] == bug_id for b in filter_multi.json()["items"])

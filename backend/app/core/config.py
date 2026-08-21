@@ -3,6 +3,14 @@ from typing import List, Union
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import field_validator
 
+# Determine absolute project root
+PROJECT_ROOT = os.path.dirname(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+)
+DEFAULT_DATA_DIR = os.path.join(PROJECT_ROOT, "data")
+DEFAULT_DB_PATH = os.path.join(DEFAULT_DATA_DIR, "bugtracer.db")
+DEFAULT_UPLOAD_DIR = os.path.join(PROJECT_ROOT, "uploads")
+
 class Settings(BaseSettings):
     PROJECT_NAME: str = "BugTracer"
     VERSION: str = "2.0.0"
@@ -14,11 +22,10 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
     
     # Database
-    # Default to SQLite. For MySQL, set: mysql+aiomysql://user:password@localhost:3306/bugtracer?charset=utf8mb4
-    DATABASE_URL: str = "sqlite+aiosqlite:///./data/bugtracer.db"
+    DATABASE_URL: str = f"sqlite+aiosqlite:///{DEFAULT_DB_PATH}"
     
     # File Storage
-    UPLOAD_DIR: str = "./uploads"
+    UPLOAD_DIR: str = DEFAULT_UPLOAD_DIR
     MAX_UPLOAD_SIZE: int = 20 * 1024 * 1024  # 20MB
     ALLOWED_EXTENSIONS: List[str] = [
         "jpg", "jpeg", "png", "gif", "webp", "svg", "bmp",
@@ -44,16 +51,37 @@ class Settings(BaseSettings):
     INITIAL_ADMIN_FULLNAME: str = "系统管理员"
     
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=os.path.join(PROJECT_ROOT, ".env"),
         env_file_encoding="utf-8",
         extra="ignore",
         case_sensitive=True
     )
     
     @property
+    def effective_database_url(self) -> str:
+        """Resolves relative SQLite URLs to absolute paths based on PROJECT_ROOT."""
+        url = self.DATABASE_URL
+        if url.startswith("sqlite+aiosqlite:///./"):
+            rel_path = url[len("sqlite+aiosqlite:///./"):]
+            abs_path = os.path.join(PROJECT_ROOT, rel_path)
+            return f"sqlite+aiosqlite:///{abs_path}"
+        elif url.startswith("sqlite:///./"):
+            rel_path = url[len("sqlite:///./"):]
+            abs_path = os.path.join(PROJECT_ROOT, rel_path)
+            return f"sqlite:///{abs_path}"
+        return url
+
+    @property
+    def effective_upload_dir(self) -> str:
+        """Resolves relative upload directories to absolute paths."""
+        if not os.path.isabs(self.UPLOAD_DIR):
+            return os.path.join(PROJECT_ROOT, self.UPLOAD_DIR)
+        return self.UPLOAD_DIR
+
+    @property
     def sync_database_url(self) -> str:
         """Returns synchronous database URL for scripts or sync engines if needed."""
-        url = self.DATABASE_URL
+        url = self.effective_database_url
         if url.startswith("sqlite+aiosqlite:"):
             return url.replace("sqlite+aiosqlite:", "sqlite:")
         elif url.startswith("mysql+aiomysql:"):
@@ -62,6 +90,6 @@ class Settings(BaseSettings):
 
 settings = Settings()
 
-# Ensure directories exist
-os.makedirs("./data", exist_ok=True)
-os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
+# Ensure directories exist using absolute paths
+os.makedirs(DEFAULT_DATA_DIR, exist_ok=True)
+os.makedirs(settings.effective_upload_dir, exist_ok=True)

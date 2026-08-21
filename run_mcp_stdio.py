@@ -8,8 +8,10 @@ import sys
 import os
 import asyncio
 
-# Ensure project root is in sys.path
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# Ensure project root is in sys.path and set as current working directory
+project_root = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, project_root)
+os.chdir(project_root)
 
 from backend.app.mcp.server import mcp
 

@@ -1,5 +1,5 @@
 from typing import Optional, List
-from fastapi import APIRouter, Depends, Query, HTTPException, status
+from fastapi import APIRouter, Depends, Query, HTTPException, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from backend.app.core.database import get_db
 from backend.app.core.deps import get_current_user
@@ -14,9 +14,10 @@ router = APIRouter(prefix="/bugs", tags=["Bugs"])
 
 @router.get("", response_model=BugListResponse)
 async def list_bugs(
+    request: Request,
     project_id: int = Query(..., description="项目ID"),
     module_id: Optional[int] = Query(None, description="模块ID"),
-    status: Optional[List[int]] = Query(None, description="状态列表"),
+    status: Optional[str] = Query(None, description="状态列表，支持逗号分隔如 1,2,3 或多次传递"),
     search: Optional[str] = Query(None, description="搜索关键词或语法"),
     mode: str = Query("admin", description="模式: admin 或 coder"),
     order_by: str = Query("id", description="排序字段"),
@@ -26,11 +27,30 @@ async def list_bugs(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    parsed_statuses: Optional[List[int]] = None
+    if "status" in request.query_params or "status[]" in request.query_params:
+        raw_list = request.query_params.getlist("status") + request.query_params.getlist("status[]")
+        status_values = []
+        for item in raw_list:
+            if item.strip():
+                for sub in item.split(","):
+                    sub_str = sub.strip()
+                    if sub_str.isdigit():
+                        status_values.append(int(sub_str))
+        parsed_statuses = status_values
+    elif status is not None:
+        status_values = []
+        for sub in status.split(","):
+            sub_str = sub.strip()
+            if sub_str.isdigit():
+                status_values.append(int(sub_str))
+        parsed_statuses = status_values
+
     return await BugService.list_bugs(
         db=db,
         project_id=project_id,
         module_id=module_id,
-        statuses=status,
+        statuses=parsed_statuses,
         search=search,
         mode=mode,
         current_user=current_user,

@@ -58,15 +58,18 @@ class BugService:
             stmt = stmt.where(Bug.module_id == module_id)
             
         # Status filter
-        if statuses is not None and len(statuses) > 0:
-            stmt = stmt.where(Bug.status.in_(statuses))
+        if statuses is not None:
+            if len(statuses) > 0:
+                stmt = stmt.where(Bug.status.in_(statuses))
+            else:
+                stmt = stmt.where(Bug.id == -1)  # Deselected all
         elif parsed_search.is_empty:
             # Default filter when not searching
             stmt = stmt.where(Bug.status.in_(DEFAULT_STATUS_FILTER))
             
-        # Coder mode filter
+        # Coder mode (Debug mode) filter: show assigned to me or created by me
         if mode == "coder" and current_user:
-            stmt = stmt.where(Bug.assignee_id == current_user.id)
+            stmt = stmt.where(or_(Bug.assignee_id == current_user.id, Bug.creator_id == current_user.id))
             
         # Total counts
         count_stmt = select(func.count()).select_from(stmt.subquery())

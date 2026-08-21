@@ -86,20 +86,31 @@
         <!-- Row 2: Description / Content -->
         <div>
           <div class="flex justify-between items-center mb-1">
-            <label class="text-gray-600 font-medium">Bug 描述：</label>
-            <button
-              v-if="!isNew && !isEditingContent"
-              class="text-blue-600 hover:underline text-[11px] font-medium"
-              @click="isEditingContent = true"
-            >
-              [编辑描述]
-            </button>
+            <label class="text-gray-600 font-medium">Bug 描述 (支持 Markdown & 图文混排)：</label>
+            <div class="flex items-center gap-2">
+              <button
+                v-if="isNew || isEditingContent"
+                type="button"
+                class="text-blue-600 hover:underline text-[11px] font-medium"
+                @click="showPreview = !showPreview"
+              >
+                [{{ showPreview ? '切换编辑' : '实时预览 Markdown' }}]
+              </button>
+              <button
+                v-if="!isNew && !isEditingContent"
+                type="button"
+                class="text-blue-600 hover:underline text-[11px] font-medium"
+                @click="isEditingContent = true"
+              >
+                [编辑描述]
+              </button>
+            </div>
           </div>
 
-          <!-- View Mode (Formatted with images & links) -->
+          <!-- View Mode (Formatted with markdown & images) -->
           <div
-            v-if="!isNew && !isEditingContent"
-            class="min-h-[90px] max-h-72 overflow-y-auto p-2.5 bg-gray-50 border border-gray-200 rounded text-gray-800 leading-relaxed break-words"
+            v-if="(!isNew && !isEditingContent) || showPreview"
+            class="min-h-[90px] max-h-72 overflow-y-auto p-3 bg-gray-50 border border-gray-200 rounded text-gray-800 leading-relaxed break-words"
             v-html="renderedContent"
           ></div>
 
@@ -109,12 +120,12 @@
               ref="contentInputRef"
               v-model="form.content"
               rows="5"
-              placeholder="请输入Bug详细描述（支持 [b]加粗红字[/b]、识别 图1/图2 自动嵌入附件图片、支持 Ctrl+V 截图直接粘贴）..."
+              placeholder="请输入详细描述（支持 Markdown 标题/列表/代码块、[b]加粗红字[/b]、输入「图1」或「![图1]」自动嵌入附件、支持 Ctrl+V 截图直接粘贴）..."
               class="w-full p-2.5 border border-gray-300 rounded text-xs focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 leading-relaxed font-sans"
               @keydown.ctrl.enter="handleSubmit"
             ></textarea>
             <div class="flex justify-between text-[11px] text-gray-400 mt-0.5">
-              <span>快捷提示：输入「图1」、「图2」自动对应下方附件</span>
+              <span>快捷提示：输入「图1」、「图2」或「![图1]」自动嵌入对应附件</span>
               <span>Ctrl + Enter 快捷提交</span>
             </div>
           </div>
@@ -251,6 +262,7 @@ const authStore = useAuthStore()
 const isNew = computed(() => !props.bugId || props.bugId === 0)
 const bugData = ref<BugDetail | null>(null)
 const isEditingContent = ref(false)
+const showPreview = ref(false)
 const isDragging = ref(false)
 const submitting = ref(false)
 const uploadLoading = ref(false)
@@ -316,6 +328,7 @@ async function fetchUsers() {
 function initNewBug() {
   bugData.value = null
   isEditingContent.value = true
+  showPreview.value = false
   form.module_id = projectStore.currentModuleId || (projectStore.currentProjectDetail?.modules[0]?.id)
   form.status = 1
   form.ver = projectStore.currentProject?.default_version || ''
@@ -340,6 +353,7 @@ async function loadBugDetail(id: number) {
     form.priority = res.data.priority || 0
     attachments.value = [...(res.data.attachments || [])]
     isEditingContent.value = false
+    showPreview.value = false
   } catch (e: any) {
     errorMessage.value = '加载 Bug 详情失败'
   }

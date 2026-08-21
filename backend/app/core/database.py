@@ -9,11 +9,11 @@ logger = logging.getLogger(__name__)
 # Create Async Engine
 # If SQLite, check_same_thread=False
 connect_args = {}
-if "sqlite" in settings.DATABASE_URL:
+if "sqlite" in settings.effective_database_url:
     connect_args["check_same_thread"] = False
 
 engine = create_async_engine(
-    settings.DATABASE_URL,
+    settings.effective_database_url,
     echo=False,
     future=True,
     connect_args=connect_args
