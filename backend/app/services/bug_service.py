@@ -393,8 +393,22 @@ class BugService:
         if not bug:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="缺陷不存在")
 
+        # Role-based status transition permissions
+        target_status = status_update.status
+        if current_user.role == "coder":
+            if target_status not in [3, 4, 5]:  # part_fixed, fixed, wont_fix
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="技术开发角色仅可将缺陷设为：已解决(fixed)、部分处理(part_fixed)或不处理(wont_fix)。如需关闭请由测试人员或管理员验收。"
+                )
+        elif current_user.role == "guest":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="访客角色无权更改缺陷状态"
+            )
+
         old_status_name = bug.status_name
-        bug.status = status_update.status
+        bug.status = target_status
         if status_update.close_reason:
             bug.close_reason = status_update.close_reason
 

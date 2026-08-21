@@ -23,10 +23,14 @@ async def test_full_api_flow():
         token = data["access_token"]
         headers = {"Authorization": f"Bearer {token}"}
 
-        # 3. Get me
-        me_res = await ac.get("/api/auth/me", headers=headers)
-        assert me_res.status_code == 200
-        assert me_res.json()["username"] == "admin"
+        # 3. Create a coder user
+        create_user_res = await ac.post("/api/auth/users", headers=headers, json={
+            "username": "coder1",
+            "fullname": "开发小王",
+            "role": "coder",
+            "password": "password123"
+        })
+        assert create_user_res.status_code == 200
 
         # 4. Get projects list
         prj_res = await ac.get("/api/projects", headers=headers)
@@ -49,36 +53,58 @@ async def test_full_api_flow():
         assert bug_data["status"] == 1
         assert bug_data["status_code"] == "new"
 
-        # 6. Change bug status to fixed (4)
-        status_res = await ac.put(f"/api/bugs/{bug_id}/status", headers=headers, json={
+        # 6. Login as coder1 and test permissions
+        coder_login = await ac.post("/api/auth/login", json={
+            "username": "coder1",
+            "password": "password123"
+        })
+        coder_token = coder_login.json()["access_token"]
+        coder_headers = {"Authorization": f"Bearer {coder_token}"}
+
+        # Coder attempts to set status to 0 (closed) -> Expect 403 Forbidden
+        coder_close_res = await ac.put(f"/api/bugs/{bug_id}/status", headers=coder_headers, json={
+            "status": 0
+        })
+        assert coder_close_res.status_code == 403
+
+        # Coder sets status to 4 (fixed) -> Expect 200 OK
+        coder_fix_res = await ac.put(f"/api/bugs/{bug_id}/status", headers=coder_headers, json={
             "status": 4,
             "close_reason": "已修改代码并测试通过"
         })
-        assert status_res.status_code == 200
-        assert status_res.json()["status"] == 4
-        assert status_res.json()["status_code"] == "fixed"
+        assert coder_fix_res.status_code == 200
+        assert coder_fix_res.json()["status"] == 4
+        assert coder_fix_res.json()["status_code"] == "fixed"
 
-        # 7. Add comment to bug
+        # 7. Admin sets status to 0 (closed) -> Expect 200 OK
+        admin_close_res = await ac.put(f"/api/bugs/{bug_id}/status", headers=headers, json={
+            "status": 0,
+            "close_reason": "验收关闭"
+        })
+        assert admin_close_res.status_code == 200
+        assert admin_close_res.json()["status"] == 0
+
+        # 8. Add comment to bug
         comment_res = await ac.post(f"/api/bugs/{bug_id}/comments", headers=headers, json={
             "content": "回归测试通过，可以发版"
         })
         assert comment_res.status_code == 200
         assert comment_res.json()["content"] == "回归测试通过，可以发版"
 
-        # 8. Query bug detail
+        # 9. Query bug detail
         detail_res = await ac.get(f"/api/bugs/{bug_id}", headers=headers)
         assert detail_res.status_code == 200
         detail = detail_res.json()
         assert len(detail["comments"]) == 1
-        assert len(detail["activities"]) >= 2
+        assert len(detail["activities"]) >= 3
 
-        # 9. Get project stats
+        # 10. Get project stats
         stats_res = await ac.get(f"/api/reports/stats/{project_id}", headers=headers)
         assert stats_res.status_code == 200
         stats = stats_res.json()
         assert stats["total_bugs"] >= 1
 
-        # 10. Search bug
+        # 11. Search bug
         search_res = await ac.get(f"/api/bugs?project_id={project_id}&search={bug_id}", headers=headers)
         assert search_res.status_code == 200
         assert len(search_res.json()["items"]) == 1

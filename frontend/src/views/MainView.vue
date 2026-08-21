@@ -1,5 +1,14 @@
 <template>
   <div class="min-h-screen bg-gray-100 flex flex-col justify-between">
+    <!-- Top Toast Notification -->
+    <div
+      v-if="toast.visible"
+      class="fixed top-3 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded shadow-lg text-xs font-medium transition-all duration-200 animate-in fade-in slide-in-from-top-2 flex items-center gap-2"
+      :class="toast.type === 'error' ? 'bg-red-600 text-white' : (toast.type === 'warn' ? 'bg-amber-500 text-white' : 'bg-gray-900 text-white')"
+    >
+      <span>{{ toast.message }}</span>
+    </div>
+
     <!-- Top Header Bar -->
     <div>
       <header class="bg-gray-800 text-gray-200 px-4 py-2 flex flex-wrap items-center justify-between text-xs border-b border-gray-700">
@@ -8,6 +17,7 @@
           <div class="flex items-center gap-2">
             <span class="text-gray-400">登录身份:</span>
             <strong class="text-white">{{ authStore.user?.fullname }} ({{ authStore.user?.username }})</strong>
+            <span class="bg-gray-700 text-gray-300 text-[10px] px-1.5 py-0.2 rounded uppercase font-mono">{{ authStore.user?.role }}</span>
             <button class="text-blue-400 hover:underline ml-1" @click="showProfileModal = true">[设置/Key]</button>
             <button class="text-red-400 hover:underline ml-1" @click="handleLogout">[退出]</button>
           </div>
@@ -126,16 +136,16 @@
                 <!-- Bug ID with hover/click flagger -->
                 <b
                   class="font-mono font-bold text-gray-800 hover:text-blue-600 px-1 py-0.5 rounded hover:bg-blue-50 cursor-pointer whitespace-nowrap"
-                  title="点击切换状态"
+                  title="点击弹出状态菜单"
                   @click.stop="handleFlaggerClick(bug, $event)"
                 >
                   #{{ bug.id }}
                 </b>
 
-                <!-- Status Tag with 1-click toggle -->
+                <!-- Status Tag with 1-click fast toggle & permission check -->
                 <span
                   :class="['status-badge', `status-${bug.status_code}`]"
-                  title="点击快捷流转状态"
+                  :title="getStatusClickTitle(bug)"
                   @click.stop="handleQuickStatusToggle(bug)"
                 >
                   [{{ bug.status_name }}]
@@ -200,7 +210,7 @@
       Tips：<kbd class="font-mono bg-white px-1 py-0.2 border border-gray-300 rounded">Ctrl+`</kbd> 提交新bug；
       <kbd class="font-mono bg-white px-1 py-0.2 border border-gray-300 rounded">Esc</kbd> 关闭弹窗；
       <kbd class="font-mono bg-white px-1 py-0.2 border border-gray-300 rounded">Ctrl+Enter</kbd> 提交bug；
-      双击描述查看详情；筛选复选框双击 = 单选；支持截图 <kbd class="font-mono bg-white px-1 py-0.2 border border-gray-300 rounded">Ctrl+V</kbd> 粘贴上传；
+      点击状态标签一键流转；双击描述查看详情；筛选复选框双击 = 单选；支持截图 <kbd class="font-mono bg-white px-1 py-0.2 border border-gray-300 rounded">Ctrl+V</kbd> 粘贴上传；
     </footer>
 
     <!-- Flagger Popover -->
@@ -250,6 +260,23 @@ const projectStore = useProjectStore()
 const showProjectMenu = ref(false)
 const showProfileModal = ref(false)
 
+const toast = reactive({
+  visible: false,
+  message: '',
+  type: 'info' as 'info' | 'warn' | 'error'
+})
+let toastTimer: any = null
+
+function showToast(message: string, type: 'info' | 'warn' | 'error' = 'info') {
+  clearTimeout(toastTimer)
+  toast.message = message
+  toast.type = type
+  toast.visible = true
+  toastTimer = setTimeout(() => {
+    toast.visible = false
+  }, 2500)
+}
+
 const flaggerState = reactive({
   visible: false,
   bugId: 0,
@@ -293,18 +320,76 @@ function handleFlaggerClick(bug: BugListItem, e: MouseEvent) {
 }
 
 async function handleFlaggerSelect(newStatus: number) {
-  await projectStore.quickChangeStatus(flaggerState.bugId, newStatus)
+  const success = await projectStore.quickChangeStatus(flaggerState.bugId, newStatus)
+  if (success) {
+    showToast(`Bug #${flaggerState.bugId} 状态已更新`, 'info')
+  }
+}
+
+function getStatusClickTitle(bug: BugListItem): string {
+  const role = authStore.user?.role
+  if ([1, 2, 3].includes(bug.status)) {
+    return '点击快捷标记为：已解决(fixed)'
+  } else if (bug.status === 4) {
+    if (role === 'admin' || role === 'tester') {
+      return '点击确认验收并标记为：已关闭(closed)'
+    } else {
+      return '技术开发角色无法直接关闭，需由测试/管理员验收关闭'
+    }
+  } else if (bug.status === 0) {
+    if (role === 'admin' || role === 'tester') {
+      return '点击重新激活为：新增(new)'
+    }
+  }
+  return '点击 Bug ID 弹出完整状态菜单'
 }
 
 async function handleQuickStatusToggle(bug: BugListItem) {
-  // Toggle: fixed -> closed (0), or new/part_fixed -> fixed (4)
-  const nextStatus = bug.status === 4 ? 0 : 4
-  await projectStore.quickChangeStatus(bug.id, nextStatus)
+  const role = authStore.user?.role
+
+  // 1. If currently active (new=1, key=2, part_fixed=3) -> Quick set to fixed (4)
+  if ([1, 2, 3].includes(bug.status)) {
+    const success = await projectStore.quickChangeStatus(bug.id, 4)
+    if (success) {
+      showToast(`Bug #${bug.id} 已快捷标记为 [已解决]`, 'info')
+    }
+    return
+  }
+
+  // 2. If currently fixed (4)
+  if (bug.status === 4) {
+    if (role === 'admin' || role === 'tester') {
+      const success = await projectStore.quickChangeStatus(bug.id, 0)
+      if (success) {
+        showToast(`Bug #${bug.id} 验收通过，已快捷标记为 [已关闭]`, 'info')
+      }
+    } else {
+      showToast(`技术开发角色无法直接关闭缺陷，请由测试人员或管理员验收后关闭。`, 'warn')
+    }
+    return
+  }
+
+  // 3. If currently closed (0)
+  if (bug.status === 0) {
+    if (role === 'admin' || role === 'tester') {
+      const success = await projectStore.quickChangeStatus(bug.id, 1)
+      if (success) {
+        showToast(`Bug #${bug.id} 已重新激活为 [新增]`, 'info')
+      }
+    } else {
+      showToast(`技术开发角色无法直接重新激活已关闭的缺陷。`, 'warn')
+    }
+    return
+  }
+
+  // Other statuses: hint user to use Flagger menu
+  showToast(`请点击 Bug ID (#${bug.id}) 弹出菜单选择目标状态`, 'info')
 }
 
 function handleBugSaved(bugId: number) {
   projectStore.fetchBugs()
   projectStore.fetchProjects()
+  showToast(`Bug 保存成功！`, 'info')
 }
 
 function handleRollNavigate(dir: 'prev' | 'next') {
@@ -361,5 +446,6 @@ onMounted(async () => {
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleGlobalKeydown)
+  clearTimeout(toastTimer)
 })
 </script>
