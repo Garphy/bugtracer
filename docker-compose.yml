@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  bugtracer:
+    build: .
+    container_name: bugtracer-app
+    restart: always
+    ports:
+      - "5002:5002"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=5002
+      - DATABASE_URL=sqlite+aiosqlite:///./data/bugtracer.db
+      - SECRET_KEY=bugtracer-super-secret-key-change-in-production-2026
+    volumes:
+      - ./data:/app/data
+      - ./uploads:/app/uploads
