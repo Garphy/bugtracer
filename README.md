@@ -1,5 +1,10 @@
 # BugTracer 2.0 极速缺陷跟踪系统
 
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
+[![Python: 3.10+](https://img.shields.io/badge/Python-3.10+-brightgreen.svg)](https://www.python.org/)
+[![Vue: 3.x](https://img.shields.io/badge/Vue-3.x-42b883.svg)](https://vuejs.org/)
+[![Protocol: MCP](https://img.shields.io/badge/Protocol-MCP-purple.svg)](https://modelcontextprotocol.io/)
+
 > 现代化重构版 | 紧凑高效 | 全快捷键驱动 | SQLite & MySQL 双兼容 | 原生支持 AI Agent (MCP 协议)
 
 ---
@@ -127,5 +132,13 @@ cd frontend
 npm install
 npm run dev
 ```
-前端开发服务器将运行在 `http://localhost:5173`，自动代理 API 请求至后端的 8000 端口。
+前端开发服务器将运行在 `http://localhost:5173`，自动代理 API 请求至后端的 5002 端口。
 修改完成后执行 `npm run build && cp -r dist/* ../backend/app/static/` 即可同步更新生产静态产物。
+
+---
+
+## 📄 开源许可证 (License)
+
+本项目采用 [GNU General Public License v3.0 (GPL-3.0)](LICENSE) 开源许可证。
+
+Copyright (C) 2026 Garphy.
