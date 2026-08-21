@@ -6,7 +6,7 @@ class ModuleBase(BaseModel):
     sort_order: int = Field(default=0)
 
 class ModuleCreate(ModuleBase):
-    project_id: int
+    project_id: Optional[int] = None
 
 class ModuleUpdate(BaseModel):
     name: Optional[str] = None

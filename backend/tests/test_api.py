@@ -131,3 +131,13 @@ async def test_full_api_flow():
         filter_multi = await ac.get(f"/api/bugs?project_id={project_id}&status=0,1,2", headers=headers)
         assert filter_multi.status_code == 200
         assert any(b["id"] == bug_id for b in filter_multi.json()["items"])
+
+        # 13. Test adding a module to project (without project_id in body)
+        add_mod_res = await ac.post(f"/api/projects/{project_id}/modules", headers=headers, json={
+            "name": "数据同步",
+            "sort_order": 0
+        })
+        assert add_mod_res.status_code == 200
+        mod_data = add_mod_res.json()
+        assert mod_data["name"] == "数据同步"
+        assert mod_data["project_id"] == project_id
