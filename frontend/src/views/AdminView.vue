@@ -359,6 +359,7 @@ async function fetchProjects() {
 async function openNewProject() {
   isNewProject.value = true
   currentEditProjectId.value = null
+  deletedModuleIds.value = []
   projectForm.name = ''
   projectForm.description = ''
   projectForm.default_version = ''
@@ -368,9 +369,12 @@ async function openNewProject() {
   editingProject.value = true
 }
 
+const deletedModuleIds = ref<number[]>([])
+
 async function editProject(projectId: number) {
   isNewProject.value = false
   currentEditProjectId.value = projectId
+  deletedModuleIds.value = []
   projectError.value = ''
   try {
     const res = await client.get<ProjectDetail>(`/projects/${projectId}`)
@@ -389,6 +393,10 @@ function addModuleItem() {
 }
 
 function removeModuleItem(index: number) {
+  const item = projectForm.modules[index]
+  if (item && item.id) {
+    deletedModuleIds.value.push(item.id)
+  }
   projectForm.modules.splice(index, 1)
 }
 
@@ -423,7 +431,17 @@ async function saveProject() {
         default_version: projectForm.default_version,
         member_ids: projectForm.member_ids
       })
-      // Sync modules
+      // 1. Delete removed modules
+      for (const delId of deletedModuleIds.value) {
+        try {
+          await client.delete(`/projects/modules/${delId}`)
+        } catch (err) {
+          console.error(`Failed to delete module ${delId}`, err)
+        }
+      }
+      deletedModuleIds.value = []
+
+      // 2. Sync remaining and new modules
       for (const m of projectForm.modules) {
         if (m.name.trim()) {
           if (m.id) {

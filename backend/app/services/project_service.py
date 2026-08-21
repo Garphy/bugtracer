@@ -203,5 +203,8 @@ class ProjectService:
         m = result.scalars().first()
         if not m:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="模块分类不存在")
+        # Disassociate bugs in this module
+        from sqlalchemy import update
+        await db.execute(update(Bug).where(Bug.module_id == module_id).values(module_id=None))
         await db.delete(m)
         await db.commit()

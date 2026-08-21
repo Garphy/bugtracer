@@ -118,9 +118,9 @@ async def init_db():
 
                 # Bind admin and AI agent as members
                 if admin:
-                    session.add(ProjectMember(project_id=project.id, user_id=admin.id, role="admin"))
+                    session.add(ProjectMember(project_id=project.id, user_id=admin.id, role_in_project="lead"))
                 if ai_user:
-                    session.add(ProjectMember(project_id=project.id, user_id=ai_user.id, role="coder"))
+                    session.add(ProjectMember(project_id=project.id, user_id=ai_user.id, role_in_project="member"))
 
                 await session.commit()
                 logger.info("Initialized default project: 公共模块 with members")

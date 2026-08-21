@@ -70,7 +70,7 @@ async def seed_demo_data():
             )
             session.add(coder)
             await session.flush()
-            session.add(ProjectMember(project_id=project.id, user_id=coder.id, role="coder"))
+            session.add(ProjectMember(project_id=project.id, user_id=coder.id, role_in_project="member"))
 
         # Create demo tester
         test_stmt = select(User).where(User.username == "tester1")
@@ -87,7 +87,7 @@ async def seed_demo_data():
             )
             session.add(tester)
             await session.flush()
-            session.add(ProjectMember(project_id=project.id, user_id=tester.id, role="tester"))
+            session.add(ProjectMember(project_id=project.id, user_id=tester.id, role_in_project="member"))
 
         # Check existing bugs
         bug_count_stmt = select(Bug).where(Bug.project_id == project.id)
