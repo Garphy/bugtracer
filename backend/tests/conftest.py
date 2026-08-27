@@ -17,8 +17,12 @@ def setup_test_environment():
         settings.effective_database_url,
         echo=False,
         future=True,
-        connect_args={"check_same_thread": False}
+        connect_args={
+            "check_same_thread": False,
+            "timeout": settings.SQLITE_BUSY_TIMEOUT / 1000
+        }
     )
+    database.apply_sqlite_pragmas(database.engine)
     database.AsyncSessionLocal = database.async_sessionmaker(
         bind=database.engine,
         class_=database.AsyncSession,

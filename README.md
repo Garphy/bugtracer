@@ -120,10 +120,9 @@ DATABASE_URL=sqlite+aiosqlite:///./data/bugtracer.db
 
 ---
 
-## 🛠️ 数据库运维与演示数据填充
+## 🛠️ 数据库运维与自动滚动备份
 
-系统提供了独立的数据库管理 CLI 脚本：
-
+### 1. 数据库初始化与演示数据
 ```bash
 # 1. 仅初始化/同步表结构
 python scripts/init_db.py
@@ -134,6 +133,26 @@ python scripts/init_db.py --seed-demo
 # 3. 重置并清空数据库（⚠️ 危险操作，请谨慎使用）
 python scripts/init_db.py --reset
 ```
+
+### 2. SQLite 高并发与 7 天自动滚动热备
+系统已默认启用 **WAL（预写日志）模式** 与 30 秒忙等待队列，实现读写完全并发与高频吞吐。
+
+系统内置了**在线热备引擎与 7 天滚动归档机制**：
+* **每日自动备份**：服务启动后后台调度器每天凌晨自动执行热备，并自动清理超过 7 天的历史备份（存放在 `./data/backups/` 目录）；
+* **手动备份运维 CLI（`scripts/backup_db.py`）**：
+  ```bash
+  # 执行一次在线热备
+  python scripts/backup_db.py --backup
+
+  # 查看当前全部备份文件列表与大小
+  python scripts/backup_db.py --list
+
+  # 手动清理过期备份（默认保留最近 7 天，支持通过 --keep 自定义）
+  python scripts/backup_db.py --prune --keep 7
+
+  # 从指定备份文件安全还原数据库
+  python scripts/backup_db.py --restore bugtracer_20260827_174638.db
+  ```
 
 ---
 

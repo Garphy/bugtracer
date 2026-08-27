@@ -1,5 +1,5 @@
 import os
-from typing import List, Union
+from typing import List, Union, Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import field_validator
 
@@ -50,6 +50,14 @@ class Settings(BaseSettings):
     INITIAL_ADMIN_PASSWORD: str = "123456"
     INITIAL_ADMIN_FULLNAME: str = "系统管理员"
     
+    # SQLite & Backup Settings
+    SQLITE_WAL_ENABLED: bool = True
+    SQLITE_BUSY_TIMEOUT: int = 30000  # 30 seconds
+    BACKUP_ENABLED: bool = True
+    BACKUP_DIR: str = "./data/backups"
+    BACKUP_KEEP_DAYS: int = 7
+    BACKUP_HOUR: int = 2  # 02:00 AM daily
+    
     model_config = SettingsConfigDict(
         env_file=os.path.join(PROJECT_ROOT, ".env"),
         env_file_encoding="utf-8",
@@ -72,11 +80,28 @@ class Settings(BaseSettings):
         return url
 
     @property
+    def sqlite_db_path(self) -> Optional[str]:
+        """Extracts the physical filesystem path if database is SQLite."""
+        url = self.effective_database_url
+        if "sqlite+aiosqlite:///" in url:
+            return url.split("sqlite+aiosqlite:///")[-1]
+        elif "sqlite:///" in url:
+            return url.split("sqlite:///")[-1]
+        return None
+
+    @property
     def effective_upload_dir(self) -> str:
         """Resolves relative upload directories to absolute paths."""
         if not os.path.isabs(self.UPLOAD_DIR):
             return os.path.join(PROJECT_ROOT, self.UPLOAD_DIR)
         return self.UPLOAD_DIR
+
+    @property
+    def effective_backup_dir(self) -> str:
+        """Resolves relative backup directories to absolute paths."""
+        if not os.path.isabs(self.BACKUP_DIR):
+            return os.path.join(PROJECT_ROOT, self.BACKUP_DIR)
+        return self.BACKUP_DIR
 
     @property
     def sync_database_url(self) -> str:
@@ -93,3 +118,4 @@ settings = Settings()
 # Ensure directories exist using absolute paths
 os.makedirs(DEFAULT_DATA_DIR, exist_ok=True)
 os.makedirs(settings.effective_upload_dir, exist_ok=True)
+os.makedirs(settings.effective_backup_dir, exist_ok=True)

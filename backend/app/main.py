@@ -6,6 +6,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 from backend.app.core.config import settings
 from backend.app.core.database import init_db
+from backend.app.core.backup import start_backup_scheduler, stop_backup_scheduler
 from backend.app.api.auth import router as auth_router
 from backend.app.api.projects import router as projects_router
 from backend.app.api.bugs import router as bugs_router
@@ -17,8 +18,10 @@ from backend.app.mcp.server import mcp
 async def lifespan(app: FastAPI):
     # Startup
     await init_db()
+    start_backup_scheduler()
     yield
     # Shutdown
+    stop_backup_scheduler()
 
 app = FastAPI(
     title=settings.PROJECT_NAME,

@@ -1,6 +1,7 @@
 import os
 import logging
 from typing import AsyncGenerator
+from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import declarative_base
 from backend.app.core.config import settings
@@ -8,10 +9,10 @@ from backend.app.core.config import settings
 logger = logging.getLogger(__name__)
 
 # Create Async Engine
-# If SQLite, check_same_thread=False
 connect_args = {}
 if "sqlite" in settings.effective_database_url:
     connect_args["check_same_thread"] = False
+    connect_args["timeout"] = settings.SQLITE_BUSY_TIMEOUT / 1000  # seconds
 
 engine = create_async_engine(
     settings.effective_database_url,
@@ -19,6 +20,25 @@ engine = create_async_engine(
     future=True,
     connect_args=connect_args
 )
+
+# Apply SQLite performance, WAL mode, and concurrency PRAGMAs
+def apply_sqlite_pragmas(target_engine):
+    @event.listens_for(target_engine.sync_engine, "connect")
+    def set_sqlite_pragma(dbapi_connection, connection_record):
+        if "sqlite" in settings.effective_database_url:
+            cursor = dbapi_connection.cursor()
+            try:
+                if settings.SQLITE_WAL_ENABLED:
+                    cursor.execute("PRAGMA journal_mode = WAL;")
+                    cursor.execute("PRAGMA synchronous = NORMAL;")
+                cursor.execute(f"PRAGMA busy_timeout = {settings.SQLITE_BUSY_TIMEOUT};")
+                cursor.execute("PRAGMA temp_store = MEMORY;")
+            except Exception as e:
+                logger.warning(f"Failed to set SQLite PRAGMA: {e}")
+            finally:
+                cursor.close()
+
+apply_sqlite_pragmas(engine)
 
 AsyncSessionLocal = async_sessionmaker(
     bind=engine,
