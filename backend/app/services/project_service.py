@@ -79,7 +79,7 @@ class ProjectService:
         mod_map = {row.module_id: row.count for row in mod_res.all()}
 
         modules_out = []
-        for m in sorted(project.modules, key=lambda x: x.sort_order):
+        for m in sorted(project.modules, key=lambda x: (x.sort_order, x.id)):
             modules_out.append({
                 "id": m.id,
                 "project_id": m.project_id,

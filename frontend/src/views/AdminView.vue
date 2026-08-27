@@ -100,15 +100,36 @@
                 <!-- Sub Modules list -->
                 <div>
                   <div class="flex justify-between items-center mb-1">
-                    <label class="block font-medium text-gray-700">子分类 / 模块清单：</label>
+                    <label class="block font-medium text-gray-700">
+                      子分类 / 模块清单
+                      <span class="text-gray-400 font-normal text-[11px]">（按住左侧图标可鼠标拖拽调整显示顺序）</span>：
+                    </label>
                     <button class="text-blue-600 hover:underline text-xs" @click="addModuleItem">[+ 增加子模块]</button>
                   </div>
                   <ul class="space-y-1.5 bg-gray-50 p-2.5 border border-gray-200 rounded">
                     <li
                       v-for="(mod, idx) in projectForm.modules"
-                      :key="idx"
-                      class="flex items-center gap-2"
+                      :key="mod.id || idx"
+                      draggable="true"
+                      class="flex items-center gap-2 p-1 bg-white border rounded transition-all duration-150"
+                      :class="{
+                        'border-blue-500 bg-blue-50 shadow-sm': dragOverIndex === idx,
+                        'opacity-40 border-dashed border-gray-400': draggingIndex === idx,
+                        'border-gray-200': dragOverIndex !== idx && draggingIndex !== idx
+                      }"
+                      @dragstart="handleDragStart(idx, $event)"
+                      @dragover.prevent="handleDragOver(idx, $event)"
+                      @dragenter.prevent="handleDragEnter(idx)"
+                      @drop.prevent="handleDrop(idx)"
+                      @dragend="handleDragEnd"
                     >
+                      <div
+                        class="text-gray-400 hover:text-blue-600 cursor-grab active:cursor-grabbing px-1 py-1 flex items-center select-none"
+                        title="按住拖动以调整模块排序"
+                      >
+                        <GripVertical class="w-3.5 h-3.5" />
+                      </div>
+                      <span class="text-gray-400 font-mono text-[11px] w-4 text-center select-none font-bold">{{ idx + 1 }}</span>
                       <input
                         v-model="mod.name"
                         type="text"
@@ -116,7 +137,7 @@
                         class="flex-1 px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:border-blue-500 bg-white"
                       />
                       <button
-                        class="text-red-500 hover:text-red-700 font-bold px-1"
+                        class="text-red-500 hover:text-red-700 font-bold px-1.5 py-0.5 hover:bg-red-50 rounded transition"
                         title="删除该分类"
                         @click="removeModuleItem(idx)"
                       >
@@ -294,6 +315,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
+import { GripVertical } from 'lucide-vue-next'
 import { Project, ProjectDetail, User } from '../types'
 import { useProjectStore } from '../stores/project'
 import client from '../api/client'
@@ -390,6 +412,46 @@ async function editProject(projectId: number) {
   } catch (e) {}
 }
 
+// Module Drag and Drop Sorting State
+const draggingIndex = ref<number | null>(null)
+const dragOverIndex = ref<number | null>(null)
+
+function handleDragStart(index: number, event: DragEvent) {
+  draggingIndex.value = index
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setData('text/plain', index.toString())
+  }
+}
+
+function handleDragOver(index: number, event: DragEvent) {
+  if (draggingIndex.value === null || draggingIndex.value === index) return
+  dragOverIndex.value = index
+}
+
+function handleDragEnter(index: number) {
+  if (draggingIndex.value === null || draggingIndex.value === index) return
+  dragOverIndex.value = index
+}
+
+function handleDrop(targetIndex: number) {
+  if (draggingIndex.value === null || draggingIndex.value === targetIndex) {
+    draggingIndex.value = null
+    dragOverIndex.value = null
+    return
+  }
+  const fromIndex = draggingIndex.value
+  const item = projectForm.modules.splice(fromIndex, 1)[0]
+  projectForm.modules.splice(targetIndex, 0, item)
+  draggingIndex.value = null
+  dragOverIndex.value = null
+}
+
+function handleDragEnd() {
+  draggingIndex.value = null
+  dragOverIndex.value = null
+}
+
 function addModuleItem() {
   projectForm.modules.push({ name: '' })
 }
@@ -443,11 +505,13 @@ async function saveProject() {
       }
       deletedModuleIds.value = []
 
-      // 2. Sync remaining and new modules
-      for (const m of projectForm.modules) {
+      // 2. Sync remaining and new modules with updated sort_order
+      for (let i = 0; i < projectForm.modules.length; i++) {
+        const m = projectForm.modules[i]
         if (m.name.trim()) {
+          const sortOrder = i + 1
           if (m.id) {
-            await client.put(`/projects/modules/${m.id}`, { name: m.name.trim() })
+            await client.put(`/projects/modules/${m.id}`, { name: m.name.trim(), sort_order: sortOrder })
           } else {
             await client.post(`/projects/${currentEditProjectId.value}/modules`, { name: m.name.trim(), sort_order: 0 })
           }
