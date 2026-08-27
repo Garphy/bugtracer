@@ -67,9 +67,16 @@ class BugService:
             # Default filter when not searching
             stmt = stmt.where(Bug.status.in_(DEFAULT_STATUS_FILTER))
             
-        # Coder mode (Debug mode) filter: show assigned to me or created by me
+        # Coder mode (Debug mode) filter: show assigned to me, created by me, or unassigned (waiting for triage/claim)
         if mode == "coder" and current_user:
-            stmt = stmt.where(or_(Bug.assignee_id == current_user.id, Bug.creator_id == current_user.id))
+            stmt = stmt.where(
+                or_(
+                    Bug.assignee_id == current_user.id,
+                    Bug.creator_id == current_user.id,
+                    Bug.assignee_id == 0,
+                    Bug.assignee_id.is_(None)
+                )
+            )
             
         # Total counts
         count_stmt = select(func.count()).select_from(stmt.subquery())
