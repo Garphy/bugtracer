@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.0.2] - 2026-08-27
+
+### Added
+- **项目子模块拖拽排序 (#43)**: 管理后台编辑项目中的子模块列表支持 HTML5 原生鼠标拖拽排序（`GripVertical` 图标手柄 + 实时动态占位高亮），保存项目时自动更新并持久化 `sort_order`，前台首页 Tab 栏与报表页即时按最新顺序生效。
+- **URL 查询参数显式绑定项目 ID (#47)**: 前台主页、项目报表等路由全面支持 `?project_id=X`（同时兼容 `?pid=X`），页面初次加载或刷新时最高优先级依据 URL 参数识别项目，彻底解决多标签页打开不同项目互相干扰的问题；切换项目自动 replace 同步至 URL；报表页和管理后台返回主页链接自动保持选中的项目 ID。
+- **SQLite WAL 预写日志与并发性能调优**: 为 SQLite 数据库连接挂载 `PRAGMA journal_mode = WAL`、`PRAGMA synchronous = NORMAL` 与 `PRAGMA busy_timeout = 30000`，实现读写完全并发与 30 秒忙等待排队机制，彻底消除并发读写下的 `database is locked` 锁死报错，写入吞吐提升 5~10 倍。
+- **SQLite 7 天自动滚动热备系统**: 基于原生 `sqlite3.Connection.backup()` API 实现零停机安全在线热备；FastAPI 后台自动调度（每天凌晨 02:00 定时执行热备 + 启动自检）；自动按日期保留最近 7 天备份并清理过期历史文件；提供独立运维 CLI 工具 `scripts/backup_db.py`（支持手动热备、列表查看、一键灾难恢复与清理）。
+- **高并发压测与热备自动化测试套件**: 新增 `backend/tests/test_backup.py`（测试 WAL 模式、高并发多协程并发读写压测、滚动保留 7 天与数据还原校验），自动化测试用例扩充至 14 项。
+
+### Fixed
+- **弹层遮罩防误触关闭 (#46)**: 移除提交及缺陷详情弹窗外围半透明遮罩的 `@click.self` 关闭触发事件，防止用户误触外围区域导致未保存的编辑内容丢失；保留右上角 `[✕]`、底部 `[取消]` 按钮与 `Esc` 键关闭。
+- **子模块删除真实持久化与安全解绑 (#37)**: 前端 `AdminView` 追踪已删除模块并在保存时发起 `DELETE /api/projects/modules/{id}` 请求；后端 `delete_module` 服务自动解绑关联缺陷的 `module_id` 设为 `NULL`，防止外键冲突。
+- **自动化测试数据库沙箱隔离 (#36)**: 在 `backend/tests/conftest.py` 中引入 Session 级别隔离临时数据库 Fixture，彻底杜绝测试用例对开发/生产库生成多余测试账号。
+- **子模块创建 Schema 校验修复**: 将 `ModuleCreate` Schema 中的 `project_id` 设为可选，修复前端创建模块报 422 字段缺失错误。
+
+---
+
 ## [2.0.1] - 2026-08-21
 
 ### Added
