@@ -2,7 +2,6 @@
   <div
     v-if="visible"
     class="fixed inset-0 z-50 flex items-start justify-center pt-10 pb-10 overflow-y-auto bg-black bg-opacity-40 animate-in fade-in"
-    @click.self="handleClose"
     @paste="handlePaste"
     @dragover.prevent="isDragging = true"
     @dragleave.prevent="isDragging = false"

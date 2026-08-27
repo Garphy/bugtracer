@@ -36,15 +36,22 @@ export const useProjectStore = defineStore('project', () => {
     return projects.value.reduce((sum, p) => sum + (p.active_bugs_count || 0), 0)
   })
 
-  async function fetchProjects() {
+  async function fetchProjects(preferredProjectId?: number | null) {
     try {
       const res = await client.get('/projects')
       projects.value = res.data
       if (projects.value.length > 0) {
-        if (!currentProjectId.value || !projects.value.some(p => p.id === currentProjectId.value)) {
-          currentProjectId.value = projects.value[0].id
-          localStorage.setItem('bt_cur_pid', currentProjectId.value.toString())
+        if (preferredProjectId && projects.value.some(p => p.id === preferredProjectId)) {
+          currentProjectId.value = preferredProjectId
+        } else if (!currentProjectId.value || !projects.value.some(p => p.id === currentProjectId.value)) {
+          const localPid = parseInt(localStorage.getItem('bt_cur_pid') || '0', 10)
+          if (localPid && projects.value.some(p => p.id === localPid)) {
+            currentProjectId.value = localPid
+          } else {
+            currentProjectId.value = projects.value[0].id
+          }
         }
+        localStorage.setItem('bt_cur_pid', currentProjectId.value.toString())
         await fetchProjectDetail(currentProjectId.value)
       }
     } catch (e) {

@@ -270,8 +270,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { ChevronDown, Copy } from 'lucide-vue-next'
 import { useAuthStore } from '../stores/auth'
 import { useProjectStore } from '../stores/project'
@@ -283,6 +283,7 @@ import BugDialog from '../components/BugDialog.vue'
 import ProfileModal from '../components/ProfileModal.vue'
 
 const router = useRouter()
+const route = useRoute()
 const authStore = useAuthStore()
 const projectStore = useProjectStore()
 
@@ -328,6 +329,7 @@ function renderRowSnippet(content: string): string {
 function handleSelectProject(projectId: number) {
   showProjectMenu.value = false
   projectStore.selectProject(projectId)
+  router.replace({ query: { ...route.query, project_id: projectId } })
 }
 
 function openNewBugDialog() {
@@ -504,8 +506,22 @@ function handleGlobalKeydown(e: KeyboardEvent) {
 
 onMounted(async () => {
   window.addEventListener('keydown', handleGlobalKeydown)
-  await projectStore.fetchProjects()
+  const urlPid = route.query.project_id || route.query.pid
+  const targetPid = urlPid ? parseInt(urlPid as string, 10) : null
+  await projectStore.fetchProjects(targetPid)
+  if (projectStore.currentProjectId && route.query.project_id !== projectStore.currentProjectId.toString()) {
+    router.replace({ query: { ...route.query, project_id: projectStore.currentProjectId } })
+  }
   await projectStore.fetchBugs()
+})
+
+watch(() => route.query.project_id, (newPid) => {
+  if (newPid) {
+    const pid = parseInt(newPid as string, 10)
+    if (pid && pid !== projectStore.currentProjectId && projectStore.projects.some(p => p.id === pid)) {
+      projectStore.selectProject(pid)
+    }
+  }
 })
 
 onUnmounted(() => {

@@ -4,7 +4,7 @@
       <!-- Top Bar -->
       <header class="bg-gray-800 text-gray-200 px-4 py-2.5 flex items-center justify-between border-b border-gray-700 no-print">
         <div class="flex items-center gap-3">
-          <router-link to="/" class="text-blue-400 hover:underline font-medium">
+          <router-link :to="{ path: '/', query: { project_id: selectedProjectId } }" class="text-blue-400 hover:underline font-medium">
             &lt;&lt; [返回Bug列表]
           </router-link>
           <span class="text-gray-400">|</span>
@@ -173,7 +173,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { use } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
 import { LineChart, BarChart, PieChart } from 'echarts/charts'
@@ -202,6 +203,8 @@ use([
   GridComponent
 ])
 
+const router = useRouter()
+const route = useRoute()
 const projectStore = useProjectStore()
 const selectedProjectId = ref<number>(projectStore.currentProjectId || 1)
 const reportData = ref<FullProjectReportResponse | null>(null)
@@ -270,6 +273,7 @@ async function loadReport() {
   try {
     const res = await client.get<FullProjectReportResponse>(`/reports/full/${selectedProjectId.value}`)
     reportData.value = res.data
+    router.replace({ query: { ...route.query, project_id: selectedProjectId.value } })
   } catch (e) {
     console.error('Failed to load full report', e)
   }
@@ -285,10 +289,22 @@ function printReport() {
 }
 
 onMounted(async () => {
-  await projectStore.fetchProjects()
+  const urlPid = route.query.project_id || route.query.pid
+  const targetPid = urlPid ? parseInt(urlPid as string, 10) : null
+  await projectStore.fetchProjects(targetPid)
   if (projectStore.currentProjectId) {
     selectedProjectId.value = projectStore.currentProjectId
   }
   loadReport()
+})
+
+watch(() => route.query.project_id, (newPid) => {
+  if (newPid) {
+    const pid = parseInt(newPid as string, 10)
+    if (pid && pid !== selectedProjectId.value) {
+      selectedProjectId.value = pid
+      loadReport()
+    }
+  }
 })
 </script>

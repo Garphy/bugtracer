@@ -6,7 +6,7 @@
         <h1 class="text-sm font-bold text-white flex items-center gap-2">
           <span>BugTracer 管理后台</span>
         </h1>
-        <router-link to="/" class="text-blue-400 hover:underline flex items-center gap-1">
+        <router-link :to="{ path: '/', query: { project_id: projectStore.currentProjectId } }" class="text-blue-400 hover:underline flex items-center gap-1">
           &lt;&lt; [返回前台主页]
         </router-link>
       </header>
@@ -295,8 +295,10 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { Project, ProjectDetail, User } from '../types'
+import { useProjectStore } from '../stores/project'
 import client from '../api/client'
 
+const projectStore = useProjectStore()
 const activeTab = ref<'projects' | 'members'>('projects')
 
 // Projects State
